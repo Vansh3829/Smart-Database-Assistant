@@ -150,6 +150,4 @@ No other files need to change.
 
 ---
 
-## 📄 License
 
-MIT — free for personal and commercial use.
