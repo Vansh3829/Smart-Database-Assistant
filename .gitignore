@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+venv/
+env/
+.Python
+
+# Environment
+.env
+
+# Uploaded files & working databases (temporary, never commit)
+uploads/
+working_db/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.sublime-project

@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Database Assistant</title>
+  <style>
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0f14;
+      --surface: #141720;
+      --panel: #1c2030;
+      --border: #252a3a;
+      --accent: #4f8ef7;
+      --accent-dim: #1a3070;
+      --text: #e2e8f0;
+      --muted: #8892a4;
+      --success: #34d399;
+      --danger: #f87171;
+      --warning: #fbbf24;
+      --radius: 10px;
+      --font: 'Inter', system-ui, sans-serif;
+      --mono: 'JetBrains Mono', 'Fira Code', monospace;
+    }
+
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; line-height: 1.6; }
+
+    a { color: var(--accent); }
+
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: var(--surface); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── Layout ── */
+    .app { display: flex; flex-direction: column; min-height: 100vh; }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky; top: 0; z-index: 100;
+    }
+
+    .logo { display: flex; align-items: center; gap: 10px; }
+    .logo-icon { width: 32px; height: 32px; background: var(--accent-dim); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+    .logo-text h1 { font-size: 15px; font-weight: 700; }
+    .logo-text p { font-size: 11px; color: var(--muted); }
+
+    .session-badge { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    main { flex: 1; max-width: 1200px; width: 100%; margin: 0 auto; padding: 28px 24px; }
+
+    /* ── Upload Screen ── */
+    #upload-screen { max-width: 600px; margin: 0 auto; }
+
+    .hero { text-align: center; margin-bottom: 32px; }
+    .hero-badge { display: inline-flex; align-items: center; gap: 6px; background: var(--accent-dim); border: 1px solid var(--accent); border-radius: 999px; padding: 4px 14px; font-size: 12px; color: var(--accent); margin-bottom: 20px; }
+    .hero h2 { font-size: 36px; font-weight: 800; margin-bottom: 10px; }
+    .hero p { color: var(--muted); font-size: 15px; max-width: 440px; margin: 0 auto; }
+
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 16px;
+      padding: 48px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .2s;
+      position: relative;
+    }
+    .drop-zone:hover, .drop-zone.dragover { border-color: var(--accent); background: rgba(79,142,247,.04); }
+    .drop-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    .drop-icon { font-size: 40px; margin-bottom: 12px; }
+    .drop-zone h3 { font-size: 17px; font-weight: 600; margin-bottom: 6px; }
+    .drop-zone p { color: var(--muted); font-size: 13px; }
+
+    .file-badges { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 18px; }
+    .badge { background: var(--panel); border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px; font-size: 12px; color: var(--muted); }
+
+    .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 24px; }
+    .feature { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; text-align: center; font-size: 12px; color: var(--muted); }
+
+    /* ── Main Screen ── */
+    #main-screen { display: none; }
+
+    .toolbar {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .toolbar span { font-size: 13px; font-weight: 600; margin-right: auto; }
+
+    .layout { display: grid; grid-template-columns: 1fr 300px; gap: 18px; margin-bottom: 20px; }
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+    /* ── Chat ── */
+    .chat-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      display: flex;
+      flex-direction: column;
+      height: 540px;
+    }
+    .chat-header { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+    .chat-header span.sub { margin-left: auto; font-size: 11px; color: var(--muted); font-weight: 400; }
+
+    .chat-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+
+    .chat-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: var(--muted); gap: 12px; }
+    .chat-empty .big-icon { font-size: 36px; }
+    .chat-empty h4 { font-size: 14px; font-weight: 600; color: var(--text); }
+
+    .suggestions { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 8px; }
+    .suggestion {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 4px 12px;
+      font-size: 12px;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .suggestion:hover { color: var(--accent); border-color: var(--accent); }
+
+    .msg { display: flex; gap: 10px; animation: fadeIn .2s ease; }
+    .msg.user { flex-direction: row-reverse; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+
+    .msg-avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; margin-top: 2px; }
+    .msg.user .msg-avatar { background: rgba(79,142,247,.2); }
+    .msg.bot .msg-avatar { background: rgba(52,211,153,.2); }
+
+    .msg-body { max-width: 85%; display: flex; flex-direction: column; gap: 6px; }
+    .msg.user .msg-body { align-items: flex-end; }
+
+    .msg-text {
+      padding: 10px 14px;
+      border-radius: 14px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .msg.user .msg-text { background: var(--accent); color: #fff; border-radius: 14px 14px 4px 14px; }
+    .msg.bot .msg-text { background: var(--panel); border: 1px solid var(--border); border-radius: 14px 14px 14px 4px; }
+
+    .msg-sql { font-family: var(--mono); font-size: 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; color: #7dd3a8; overflow-x: auto; }
+    .msg-sql-label { font-size: 11px; color: var(--muted); margin-bottom: 2px; display: flex; align-items: center; gap: 4px; }
+
+    .msg-error { background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.3); border-radius: 8px; padding: 8px 12px; font-size: 12px; color: var(--danger); }
+    .msg-success { background: rgba(52,211,153,.1); border: 1px solid rgba(52,211,153,.3); border-radius: 8px; padding: 8px 12px; font-size: 12px; color: var(--success); }
+
+    .result-table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); }
+    .result-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .result-table th { background: rgba(13,15,20,.6); padding: 8px 12px; text-align: left; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    .result-table td { padding: 7px 12px; border-bottom: 1px solid rgba(37,42,58,.5); white-space: nowrap; color: var(--text); }
+    .result-table tr:last-child td { border-bottom: none; }
+    .result-table tr:hover td { background: rgba(79,142,247,.04); }
+    .null-val { color: var(--muted); font-style: italic; }
+    .result-count { font-size: 11px; color: var(--muted); padding: 6px 12px; border-top: 1px solid var(--border); }
+
+    .typing { display: flex; gap: 5px; padding: 10px 14px; background: var(--panel); border: 1px solid var(--border); border-radius: 14px 14px 14px 4px; width: fit-content; }
+    .typing span { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: bounce .9s infinite; }
+    .typing span:nth-child(2) { animation-delay: .15s; }
+    .typing span:nth-child(3) { animation-delay: .3s; }
+    @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+
+    .chat-input-row { padding: 14px; border-top: 1px solid var(--border); display: flex; gap: 10px; align-items: flex-end; }
+    #chat-input {
+      flex: 1;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 13px;
+      resize: none;
+      outline: none;
+      max-height: 120px;
+      overflow-y: auto;
+      transition: border-color .15s;
+      line-height: 1.5;
+    }
+    #chat-input:focus { border-color: var(--accent); }
+    #chat-input::placeholder { color: var(--muted); }
+
+    /* ── Schema Panel ── */
+    .schema-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .schema-header { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+    .schema-header .count { margin-left: auto; font-size: 11px; color: var(--muted); font-weight: 400; }
+    .schema-body { overflow-y: auto; max-height: 490px; }
+
+    .schema-table { border-bottom: 1px solid rgba(37,42,58,.5); }
+    .schema-table-header { padding: 10px 18px; display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+    .schema-table-header:hover { background: var(--panel); }
+    .schema-table-name { font-size: 12px; font-weight: 600; font-family: var(--mono); color: var(--text); flex: 1; }
+    .schema-chevron { color: var(--muted); font-size: 10px; transition: transform .2s; }
+    .schema-table.open .schema-chevron { transform: rotate(90deg); }
+    .schema-cols { display: none; padding-bottom: 6px; }
+    .schema-table.open .schema-cols { display: block; }
+    .schema-col { display: flex; align-items: center; gap: 8px; padding: 4px 18px 4px 32px; }
+    .col-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); flex-shrink: 0; }
+    .col-pk { background: var(--warning) !important; }
+    .col-name { font-size: 12px; font-family: var(--mono); color: #cbd5e1; flex: 1; }
+    .col-type { font-size: 11px; font-family: var(--mono); color: var(--muted); }
+    .col-type.int { color: #60a5fa; }
+    .col-type.text { color: #34d399; }
+    .col-type.real { color: #fbbf24; }
+
+    /* ── Data Preview ── */
+    .preview-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .preview-header { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+    .preview-header h3 { font-size: 13px; font-weight: 600; }
+    .preview-header select { background: var(--panel); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 4px 10px; font-size: 12px; outline: none; cursor: pointer; margin-left: auto; }
+    .preview-table-wrap { overflow-x: auto; }
+    .preview-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .preview-table th { background: rgba(13,15,20,.6); padding: 9px 14px; text-align: left; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    .preview-table td { padding: 8px 14px; border-bottom: 1px solid rgba(37,42,58,.5); white-space: nowrap; }
+    .preview-table tr:hover td { background: rgba(79,142,247,.03); }
+    .preview-footer { padding: 8px 14px; font-size: 11px; color: var(--muted); border-top: 1px solid var(--border); }
+
+    /* ── Buttons ── */
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: all .15s; text-decoration: none; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #3b7de8; }
+    .btn-secondary { background: var(--panel); border: 1px solid var(--border); color: #cbd5e1; }
+    .btn-secondary:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .btn-danger { background: transparent; border: 1px solid rgba(248,113,113,.4); color: var(--danger); }
+    .btn-danger:hover:not(:disabled) { background: rgba(248,113,113,.1); }
+    .btn-icon { width: 36px; height: 36px; padding: 0; display: flex; align-items: center; justify-content: center; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; color: var(--text); font-size: 16px; }
+    .btn-icon:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Misc ── */
+    .spinner { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to{transform:rotate(360deg)} }
+    .spinner-sm { width: 14px; height: 14px; border-width: 2px; }
+    .text-muted { color: var(--muted); }
+    .text-sm { font-size: 12px; }
+    .mt-2 { margin-top: 8px; }
+
+    .error-banner { display: none; background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.3); border-radius: var(--radius); padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: var(--danger); align-items: center; gap: 10px; }
+    .error-banner.show { display: flex; }
+    .error-banner button { margin-left: auto; background: none; border: none; color: var(--danger); cursor: pointer; font-size: 16px; line-height: 1; }
+
+    .upload-again { text-align: center; margin-top: 12px; }
+    .upload-again button { background: none; border: none; color: var(--muted); font-size: 13px; cursor: pointer; }
+    .upload-again button:hover { color: var(--accent); }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🗄️</div>
+      <div class="logo-text">
+        <h1>Smart Database Assistant</h1>
+        <p>Query · Edit · Export — no SQL needed</p>
+      </div>
+    </div>
+    <div class="session-badge" id="session-badge" style="display:none">
+      <div class="dot"></div>
+      <span id="badge-filename"></span>
+      <span style="color:var(--border)">·</span>
+      <span id="badge-tables"></span>
+    </div>
+  </header>
+
+  <main>
+    <!-- Error Banner -->
+    <div class="error-banner" id="error-banner">
+      <span>⚠️</span>
+      <span id="error-text"></span>
+      <button onclick="hideError()">✕</button>
+    </div>
+
+    <!-- Upload Screen -->
+    <div id="upload-screen">
+      <div class="hero">
+        <div class="hero-badge">✨ AI-Powered · No SQL Required</div>
+        <h2>Talk to your data.</h2>
+        <p>Upload any database or spreadsheet and interact with it using plain English.</p>
+      </div>
+
+      <div class="drop-zone" id="drop-zone">
+        <input type="file" id="file-input" accept=".csv,.xlsx,.xls,.db,.sqlite,.sql" />
+        <div id="drop-content">
+          <div class="drop-icon">📂</div>
+          <h3>Drop your file here</h3>
+          <p>or click to browse</p>
+          <div class="file-badges" style="margin-top:16px">
+            <span class="badge">📊 CSV</span>
+            <span class="badge">📗 Excel (.xlsx)</span>
+            <span class="badge">🗃️ SQLite (.db)</span>
+            <span class="badge">📄 SQL Dump</span>
+          </div>
+        </div>
+        <div id="drop-loading" style="display:none">
+          <div class="spinner" style="margin:0 auto 12px"></div>
+          <h3>Processing your file…</h3>
+          <p>Converting to SQLite and preparing workspace</p>
+        </div>
+      </div>
+
+      <div class="features" style="margin-top:20px">
+        <div class="feature">💬 Ask in English</div>
+        <div class="feature">✏️ Edit naturally</div>
+        <div class="feature">🔒 Original protected</div>
+        <div class="feature">⬇️ Download result</div>
+        <div class="feature">📋 Multi-table</div>
+        <div class="feature">🤖 Gemini AI</div>
+      </div>
+    </div>
+
+    <!-- Main Screen -->
+    <div id="main-screen">
+
+      <!-- Toolbar -->
+      <div class="toolbar">
+        <span>⬇️ Download Modified Database</span>
+        <button class="btn btn-secondary" onclick="download('sqlite')">🗃️ SQLite</button>
+        <button class="btn btn-secondary" onclick="download('csv')">📊 CSV</button>
+        <button class="btn btn-secondary" onclick="download('xlsx')">📗 Excel</button>
+        <button class="btn btn-danger" onclick="resetData()">↺ Reset Changes</button>
+      </div>
+
+      <!-- Chat + Schema -->
+      <div class="layout">
+
+        <!-- Chat -->
+        <div class="chat-box">
+          <div class="chat-header">
+            🤖 AI Assistant
+            <span class="sub">Powered by Gemini</span>
+          </div>
+
+          <div class="chat-messages" id="chat-messages">
+            <div class="chat-empty" id="chat-empty">
+              <div class="big-icon">💬</div>
+              <h4>Ask anything about your data</h4>
+              <p class="text-muted text-sm">Query, filter, edit — in plain English</p>
+              <div class="suggestions" id="suggestions">
+                <span class="suggestion" onclick="suggest(this)">Show all rows</span>
+                <span class="suggestion" onclick="suggest(this)">Count total rows</span>
+                <span class="suggestion" onclick="suggest(this)">Show column names</span>
+                <span class="suggestion" onclick="suggest(this)">Show duplicate rows</span>
+                <span class="suggestion" onclick="suggest(this)">Delete rows where salary is NULL</span>
+                <span class="suggestion" onclick="suggest(this)">Increase salary by 10%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="chat-input-row">
+            <textarea id="chat-input" rows="1" placeholder="Ask a question or give an instruction…"></textarea>
+            <button class="btn btn-primary" id="send-btn" onclick="sendMessage()">
+              <span id="send-icon">➤</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Schema -->
+        <div class="schema-panel">
+          <div class="schema-header">
+            🗂️ Schema
+            <span class="count" id="schema-count">0 tables</span>
+          </div>
+          <div class="schema-body" id="schema-body"></div>
+        </div>
+      </div>
+
+      <!-- Data Preview -->
+      <div class="preview-section">
+        <div class="preview-header">
+          <span>📋</span>
+          <h3>Current Data</h3>
+          <select id="preview-table-select" onchange="renderPreviewTable()"></select>
+        </div>
+        <div class="preview-table-wrap">
+          <table class="preview-table" id="preview-table">
+            <thead id="preview-thead"></thead>
+            <tbody id="preview-tbody"></tbody>
+          </table>
+        </div>
+        <div class="preview-footer" id="preview-footer"></div>
+      </div>
+
+      <div class="upload-again">
+        <button onclick="resetAll()">← Upload a different file</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────────────
+  let sessionId = null;
+  let previewData = {};
+
+  // ── Upload ─────────────────────────────────────────────────────────────────
+  const fileInput = document.getElementById('file-input');
+  const dropZone = document.getElementById('drop-zone');
+
+  fileInput.addEventListener('change', e => e.target.files[0] && uploadFile(e.target.files[0]));
+
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    const f = e.dataTransfer.files[0];
+    if (f) uploadFile(f);
+  });
+
+  async function uploadFile(file) {
+    const allowed = ['csv','xlsx','xls','db','sqlite','sql'];
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!allowed.includes(ext)) { showError('Unsupported file type: .' + ext); return; }
+
+    document.getElementById('drop-content').style.display = 'none';
+    document.getElementById('drop-loading').style.display = 'block';
+
+    const fd = new FormData();
+    fd.append('file', file);
+
+    try {
+      const res = await fetch('/upload', { method: 'POST', body: fd });
+      const data = await res.json();
+
+      if (data.error) { showError(data.error); resetUploadUI(); return; }
+
+      sessionId = data.session_id;
+      previewData = data.preview;
+
+      // Show main screen
+      document.getElementById('upload-screen').style.display = 'none';
+      document.getElementById('main-screen').style.display = 'block';
+
+      // Badge
+      document.getElementById('session-badge').style.display = 'flex';
+      document.getElementById('badge-filename').textContent = data.filename;
+      const tCount = Object.keys(data.schema).length;
+      document.getElementById('badge-tables').textContent = tCount + ' table' + (tCount !== 1 ? 's' : '');
+
+      renderSchema(data.schema);
+      renderPreviewSelector(data.preview);
+      renderPreviewTable();
+
+      addBotMessage(`I've loaded **${data.filename}**. I can see ${tCount} table(s). Ask me anything!`);
+
+    } catch(e) {
+      showError('Could not connect to server. Is the backend running?');
+      resetUploadUI();
+    }
+  }
+
+  function resetUploadUI() {
+    document.getElementById('drop-content').style.display = 'block';
+    document.getElementById('drop-loading').style.display = 'none';
+  }
+
+  // ── Chat ───────────────────────────────────────────────────────────────────
+  const chatInput = document.getElementById('chat-input');
+
+  chatInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+
+  // Auto-resize textarea
+  chatInput.addEventListener('input', () => {
+    chatInput.style.height = 'auto';
+    chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
+  });
+
+  function suggest(el) {
+    chatInput.value = el.textContent;
+    chatInput.focus();
+  }
+
+  async function sendMessage() {
+    const msg = chatInput.value.trim();
+    if (!msg || !sessionId) return;
+
+    chatInput.value = '';
+    chatInput.style.height = 'auto';
+
+    // Hide empty state
+    const empty = document.getElementById('chat-empty');
+    if (empty) empty.style.display = 'none';
+
+    addUserMessage(msg);
+    addTypingIndicator();
+
+    const sendBtn = document.getElementById('send-btn');
+    sendBtn.disabled = true;
+    document.getElementById('send-icon').innerHTML = '<div class="spinner spinner-sm"></div>';
+
+    try {
+      const res = await fetch('/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId, message: msg })
+      });
+      const data = await res.json();
+      removeTypingIndicator();
+
+      if (data.error) {
+        addBotMessage(null, null, data.error, data.sql);
+      } else {
+        const r = data.result;
+        if (r.type === 'query') {
+          addBotMessage(`Found ${r.rowcount} row${r.rowcount !== 1 ? 's' : ''}.`, r, null, data.sql);
+        } else {
+          addBotMessage(r.message, null, null, data.sql);
+          if (data.updated_preview) {
+            previewData = data.updated_preview;
+            renderPreviewSelector(previewData);
+            renderPreviewTable();
+          }
+        }
+      }
+    } catch(e) {
+      removeTypingIndicator();
+      addBotMessage(null, null, 'Connection error. Is the backend running?');
+    }
+
+    sendBtn.disabled = false;
+    document.getElementById('send-icon').textContent = '➤';
+    scrollChat();
+  }
+
+  function addUserMessage(text) {
+    const msgs = document.getElementById('chat-messages');
+    msgs.insertAdjacentHTML('beforeend', `
+      <div class="msg user">
+        <div class="msg-avatar">👤</div>
+        <div class="msg-body">
+          <div class="msg-text">${escHtml(text)}</div>
+        </div>
+      </div>`);
+    scrollChat();
+  }
+
+  function addBotMessage(text, queryResult, error, sql) {
+    const msgs = document.getElementById('chat-messages');
+    let inner = '';
+
+    if (text) inner += `<div class="msg-text">${escHtml(text)}</div>`;
+
+    if (sql) {
+      inner += `<div class="msg-sql-label">🔧 Generated SQL</div>
+                <pre class="msg-sql">${escHtml(sql)}</pre>`;
+    }
+
+    if (error) {
+      inner += `<div class="msg-error">⚠️ ${escHtml(error)}</div>`;
+    }
+
+    if (queryResult && queryResult.columns.length > 0) {
+      let rows = queryResult.rows.slice(0, 50).map(row =>
+        '<tr>' + row.map(c => `<td>${c === null || c === '' ? '<span class="null-val">NULL</span>' : escHtml(String(c))}</td>`).join('') + '</tr>'
+      ).join('');
+      inner += `
+        <div class="result-table-wrap">
+          <table class="result-table">
+            <thead><tr>${queryResult.columns.map(c=>`<th>${escHtml(c)}</th>`).join('')}</tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <div class="result-count">${queryResult.rowcount} row${queryResult.rowcount!==1?'s':''} returned${queryResult.rowcount>50?' · Showing first 50':''}</div>
+        </div>`;
+    }
+
+    msgs.insertAdjacentHTML('beforeend', `
+      <div class="msg bot">
+        <div class="msg-avatar">🤖</div>
+        <div class="msg-body">${inner}</div>
+      </div>`);
+    scrollChat();
+  }
+
+  function addTypingIndicator() {
+    const msgs = document.getElementById('chat-messages');
+    msgs.insertAdjacentHTML('beforeend', `
+      <div class="msg bot" id="typing-indicator">
+        <div class="msg-avatar">🤖</div>
+        <div class="msg-body">
+          <div class="typing"><span></span><span></span><span></span></div>
+        </div>
+      </div>`);
+    scrollChat();
+  }
+
+  function removeTypingIndicator() {
+    const el = document.getElementById('typing-indicator');
+    if (el) el.remove();
+  }
+
+  function scrollChat() {
+    const msgs = document.getElementById('chat-messages');
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  // ── Schema ─────────────────────────────────────────────────────────────────
+  function renderSchema(schema) {
+    const body = document.getElementById('schema-body');
+    const tables = Object.keys(schema);
+    document.getElementById('schema-count').textContent = tables.length + ' table' + (tables.length !== 1 ? 's' : '');
+
+    body.innerHTML = tables.map(t => {
+      const cols = schema[t];
+      const colsHtml = cols.map(c => {
+        const typeClass = /INT/i.test(c.type) ? 'int' : /TEXT|CHAR|VAR/i.test(c.type) ? 'text' : /REAL|FLOAT|NUM/i.test(c.type) ? 'real' : '';
+        return `<div class="schema-col">
+          <div class="col-dot ${c.pk ? 'col-pk' : ''}"></div>
+          <span class="col-name">${escHtml(c.name)}</span>
+          <span class="col-type ${typeClass}">${escHtml(c.type || 'ANY')}</span>
+        </div>`;
+      }).join('');
+      return `<div class="schema-table open">
+        <div class="schema-table-header" onclick="this.parentElement.classList.toggle('open')">
+          <span>📋</span>
+          <span class="schema-table-name">${escHtml(t)}</span>
+          <span class="schema-chevron">▶</span>
+        </div>
+        <div class="schema-cols">${colsHtml}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Preview ────────────────────────────────────────────────────────────────
+  function renderPreviewSelector(data) {
+    previewData = data;
+    const sel = document.getElementById('preview-table-select');
+    const tables = Object.keys(data);
+    sel.innerHTML = tables.map(t => `<option value="${escHtml(t)}">${escHtml(t)}</option>`).join('');
+  }
+
+  function renderPreviewTable() {
+    const sel = document.getElementById('preview-table-select');
+    const table = sel.value;
+    if (!table || !previewData[table]) return;
+
+    const d = previewData[table];
+    document.getElementById('preview-thead').innerHTML =
+      '<tr>' + d.columns.map(c => `<th>${escHtml(c)}</th>`).join('') + '</tr>';
+
+    document.getElementById('preview-tbody').innerHTML = d.rows.map(row =>
+      '<tr>' + row.map(c => `<td>${c === null || c === '' ? '<span class="null-val">NULL</span>' : escHtml(String(c))}</td>`).join('') + '</tr>'
+    ).join('');
+
+    document.getElementById('preview-footer').textContent =
+      `Showing ${d.rows.length} of ${d.total} rows`;
+  }
+
+  // ── Download ───────────────────────────────────────────────────────────────
+  function download(fmt) {
+    if (!sessionId) return;
+    window.location.href = `/download?session_id=${sessionId}&format=${fmt}`;
+  }
+
+  // ── Reset ──────────────────────────────────────────────────────────────────
+  async function resetData() {
+    if (!sessionId || !confirm('Reset all changes and restore original data?')) return;
+    try {
+      const res = await fetch('/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId })
+      });
+      const data = await res.json();
+      if (data.error) { showError(data.error); return; }
+      previewData = data.preview;
+      renderPreviewSelector(data.preview);
+      renderPreviewTable();
+      renderSchema(data.schema);
+      addBotMessage('All changes have been reset to the original data.');
+    } catch(e) { showError('Reset failed.'); }
+  }
+
+  function resetAll() {
+    sessionId = null;
+    previewData = {};
+    document.getElementById('main-screen').style.display = 'none';
+    document.getElementById('upload-screen').style.display = 'block';
+    document.getElementById('session-badge').style.display = 'none';
+    document.getElementById('chat-messages').innerHTML =
+      `<div class="chat-empty" id="chat-empty">
+        <div class="big-icon">💬</div>
+        <h4>Ask anything about your data</h4>
+        <p class="text-muted text-sm">Query, filter, edit — in plain English</p>
+        <div class="suggestions" id="suggestions">
+          <span class="suggestion" onclick="suggest(this)">Show all rows</span>
+          <span class="suggestion" onclick="suggest(this)">Count total rows</span>
+          <span class="suggestion" onclick="suggest(this)">Show column names</span>
+          <span class="suggestion" onclick="suggest(this)">Show duplicate rows</span>
+          <span class="suggestion" onclick="suggest(this)">Delete rows where salary is NULL</span>
+          <span class="suggestion" onclick="suggest(this)">Increase salary by 10%</span>
+        </div>
+      </div>`;
+    resetUploadUI();
+    fileInput.value = '';
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function showError(msg) { document.getElementById('error-text').textContent = msg; document.getElementById('error-banner').classList.add('show'); }
+  function hideError() { document.getElementById('error-banner').classList.remove('show'); }
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+</script>
+</body>
+</html>
